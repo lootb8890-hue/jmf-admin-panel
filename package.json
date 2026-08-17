@@ -5,7 +5,8 @@
   "description": "لوحة تحكم إدارية — إدارة نماذج الذكاء الاصطناعي",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "netlify:dev": "npx netlify dev"
   },
   "dependencies": {
     "express": "^4.18.2"
