@@ -1,8 +1,8 @@
 {
   "name": "jmf-admin-panel",
   "version": "1.0.0",
-  "description": "لوحة تحكم إدارية مستقلة لإدارة نماذج الذكاء الاصطناعي — jmf coder",
-  "main": "server.js",
+  "private": true,
+  "description": "لوحة تحكم إدارية — إدارة نماذج الذكاء الاصطناعي",
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js"
