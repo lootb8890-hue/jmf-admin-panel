@@ -1,0 +1,13 @@
+{
+  "name": "jmf-admin-panel",
+  "version": "1.0.0",
+  "description": "لوحة تحكم إدارية مستقلة لإدارة نماذج الذكاء الاصطناعي — jmf coder",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
