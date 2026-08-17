@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>لوحة التحكم الإدارية — jmf coder</title>
+
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#00d4aa" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="jmf admin" />
+  <meta name="description" content="إدارة نماذج الذكاء الاصطناعي والتوكنات" />
+  <meta name="mobile-web-app-capable" content="yes" />
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+    }
+  </script>
+  <div class="admin-app">
+
+    <!-- الشريط الجانبي -->
+    <aside class="admin-sidebar">
+      <div class="admin-brand">
+        <div class="admin-brand-logo">j</div>
+        <div class="admin-brand-info">
+          <span class="admin-brand-text">jmf coder</span>
+          <span class="admin-badge">Admin Panel</span>
+        </div>
+      </div>
+
+      <nav class="admin-nav">
+        <button class="admin-nav-item active" data-section="dashboard">
+          <span class="nav-ic">◈</span> الرئيسية
+        </button>
+        <button class="admin-nav-item" data-section="models">
+          <span class="nav-ic">◈</span> إدارة النماذج
+        </button>
+        <button class="admin-nav-item" data-section="tokens">
+          <span class="nav-ic">🔑</span> إدارة التوكنات
+        </button>
+        <button class="admin-nav-item" data-section="settings">
+          <span class="nav-ic">⚙</span> الإعدادات
+        </button>
+      </nav>
+
+      <div class="admin-sidebar-footer">
+        <div class="admin-gw-indicator" id="gwIndicator">
+          <span class="gw-dot"></span>
+          <span class="gw-text"> OmniRoute: —</span>
+        </div>
+        <div class="admin-version" id="adminVersionFooter">v1.0.0</div>
+      </div>
+    </aside>
+
+    <!-- المحتوى الرئيسي -->
+    <main class="admin-main">
+
+      <!-- ======== قسم الرئيسية ======== -->
+      <section class="admin-section active" id="section-dashboard">
+        <div class="admin-page-header">
+          <h1>لوحة التحكم الإدارية</h1>
+          <p class="admin-subtitle">إدارة نماذج الذكاء الاصطناعي والتوكنات بشكل مستقل</p>
+        </div>
+
+        <div class="admin-stats-grid">
+          <div class="admin-stat-card">
+            <div class="stat-icon models-icon">◈</div>
+            <div class="stat-body">
+              <div class="stat-value" id="statModels">0</div>
+              <div class="stat-label">نموذج مخصص</div>
+            </div>
+          </div>
+          <div class="admin-stat-card">
+            <div class="stat-icon active-icon">●</div>
+            <div class="stat-body">
+              <div class="stat-value" id="statActive">0</div>
+              <div class="stat-label">مفعّل</div>
+            </div>
+          </div>
+          <div class="admin-stat-card">
+            <div class="stat-icon tokens-icon">🔑</div>
+            <div class="stat-body">
+              <div class="stat-value" id="statTokens">0</div>
+              <div class="stat-label">توكن</div>
+            </div>
+          </div>
+          <div class="admin-stat-card">
+            <div class="stat-icon gw-icon">◉</div>
+            <div class="stat-body">
+              <div class="stat-value" id="statGwStatus">—</div>
+              <div class="stat-label">حالة البوابة</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <h3>أحدث النماذج المضافة</h3>
+          </div>
+          <div class="admin-card-body">
+            <div id="recentModels" class="admin-recent-list"></div>
+            <div class="admin-empty hidden" id="recentEmpty">لم تُضف أي نماذج بعد.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======== قسم إدارة النماذج ======== -->
+      <section class="admin-section" id="section-models">
+        <div class="admin-page-header">
+          <h1>إدارة النماذج</h1>
+          <button class="admin-btn primary lg" id="addModelBtn">+ إضافة نموذج جديد</button>
+        </div>
+
+        <!-- نموذج الإضافة/التعديل -->
+        <div class="admin-card form-card hidden" id="modelFormCard">
+          <div class="admin-card-header">
+            <h3 id="modelFormTitle">إضافة نموذج جديد</h3>
+            <button class="admin-btn-icon" id="closeModelForm">✕</button>
+          </div>
+          <div class="admin-card-body">
+            <div class="admin-form-grid">
+              <div class="admin-form-group full">
+                <label>اسم النموذج <span class="req">*</span></label>
+                <input type="text" id="modelName" placeholder="مثال: Claude 4 Opus" />
+              </div>
+              <div class="admin-form-group full">
+                <label>معرّف النموذج (Model ID) <span class="req">*</span></label>
+                <input type="text" id="modelId" placeholder="مثال: anthropic/claude-4-opus" />
+                <small class="admin-hint">التنسيق: provider/model-name — يجب أن يتوافق مع OmniRoute</small>
+              </div>
+              <div class="admin-form-group">
+                <label>المزوّد (Provider) <span class="req">*</span></label>
+                <input type="text" id="modelProvider" placeholder="مثال: anthropic" />
+              </div>
+              <div class="admin-form-group">
+                <label>الحد الأقصى للسياق (Tokens)</label>
+                <input type="number" id="modelContext" placeholder="200000" />
+              </div>
+              <div class="admin-form-group">
+                <label>الحد الأقصى للإخراج (Tokens)</label>
+                <input type="number" id="modelMaxOutput" placeholder="8192" />
+              </div>
+              <div class="admin-form-group">
+                <label>كلفة الإدخال ($/1M Tokens)</label>
+                <input type="number" id="modelCostIn" step="0.01" placeholder="0.00" />
+              </div>
+              <div class="admin-form-group">
+                <label>كلفة الإخراج ($/1M Tokens)</label>
+                <input type="number" id="modelCostOut" step="0.01" placeholder="0.00" />
+              </div>
+              <div class="admin-form-group full">
+                <label class="admin-checkbox-row">
+                  <input type="checkbox" id="modelFree" /> مجاني (Free)
+                </label>
+                <label class="admin-checkbox-row">
+                  <input type="checkbox" id="modelVision" /> يدعم الصور (Vision)
+                </label>
+                <label class="admin-checkbox-row">
+                  <input type="checkbox" id="modelVideo" /> يدعم الفيديو
+                </label>
+                <label class="admin-checkbox-row">
+                  <input type="checkbox" id="modelActive" checked /> مفعّل
+                </label>
+              </div>
+              <div class="admin-form-group full">
+                <label>الوصف (اختياري)</label>
+                <textarea id="modelDesc" rows="2" placeholder="وصف مختصر للنموذج"></textarea>
+              </div>
+            </div>
+          </div>
+          <div class="admin-card-footer">
+            <button class="admin-btn" id="cancelModelBtn">إلغاء</button>
+            <button class="admin-btn primary" id="saveModelBtn">حفظ النموذج</button>
+          </div>
+        </div>
+
+        <!-- شريط البحث والفلترة -->
+        <div class="admin-toolbar">
+          <div class="admin-search">
+            <span class="search-ic">⌕</span>
+            <input type="text" id="modelsSearch" placeholder="ابحث في النماذج..." />
+          </div>
+          <select id="modelsFilter" class="admin-select">
+            <option value="all">الكل</option>
+            <option value="active">المفعّلة فقط</option>
+            <option value="inactive">المعطّلة فقط</option>
+            <option value="free">المجانية فقط</option>
+            <option value="vision">تدعم الصور</option>
+          </select>
+        </div>
+
+        <!-- شبكة النماذج -->
+        <div class="admin-models-grid" id="modelsGrid"></div>
+        <div class="admin-empty hidden" id="modelsEmpty">
+          لا توجد نماذج مخصصة. أضف نموذجاً جديداً للبدء.
+        </div>
+      </section>
+
+      <!-- ======== قسم إدارة التوكنات ======== -->
+      <section class="admin-section" id="section-tokens">
+        <div class="admin-page-header">
+          <h1>إدارة التوكنات</h1>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <h3>إضافة توكن مزوّد</h3>
+          </div>
+          <div class="admin-card-body">
+            <div class="admin-form-grid">
+              <div class="admin-form-group">
+                <label>المزوّد <span class="req">*</span></label>
+                <select id="tokenProvider">
+                  <option value="">اختر المزوّد...</option>
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic</option>
+                  <option value="google">Google (Gemini)</option>
+                  <option value="groq">Groq</option>
+                  <option value="deepseek">DeepSeek</option>
+                  <option value="mistral">Mistral</option>
+                  <option value="openrouter">OpenRouter</option>
+                  <option value="github-copilot">GitHub Copilot</option>
+                  <option value="xai">xAI (Grok)</option>
+                  <option value="custom">مزوّد مخصص...</option>
+                </select>
+              </div>
+              <div class="admin-form-group hidden" id="customProviderGroup">
+                <label>اسم المزوّد المخصص</label>
+                <input type="text" id="customProviderName" placeholder="my-provider" />
+              </div>
+              <div class="admin-form-group full">
+                <label>التوكن (API Key) <span class="req">*</span></label>
+                <div class="admin-input-with-btn">
+                  <input type="password" id="tokenKey" placeholder="sk-..." />
+                  <button class="admin-btn sm" id="toggleTokenVis">إظهار</button>
+                </div>
+              </div>
+              <div class="admin-form-group full">
+                <label>الرابط الأساسي (Base URL) — اختياري</label>
+                <input type="text" id="tokenBaseUrl" placeholder="اتركه فارغاً للرابط الافتراضي" />
+              </div>
+            </div>
+          </div>
+          <div class="admin-card-footer">
+            <button class="admin-btn primary" id="saveTokenBtn">حفظ التوكن</button>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <h3>التوكنات المحفوظة</h3>
+          </div>
+          <div class="admin-card-body">
+            <div id="tokensList" class="admin-tokens-list"></div>
+            <div class="admin-empty hidden" id="tokensEmpty">لا توجد توكنات محفوظة.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======== قسم الإعدادات ======== -->
+      <section class="admin-section" id="section-settings">
+        <div class="admin-page-header">
+          <h1>الإعدادات</h1>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <h3>🔗 ربط GitHub — المزامنة بين الأجهزة</h3>
+          </div>
+          <div class="admin-card-body">
+            <p class="admin-info-text" style="margin-bottom:14px;color:var(--text-dim);font-size:13px;line-height:1.7">
+              لجعل النماذج تظهر تلقائياً على جميع أجهزة المستخدمين، اربط لوحة التحكم بمستودع GitHub.
+              <br/><strong>الخطوات:</strong>
+              <br/>1. أنشئ مستودعاً جديداً على GitHub (عام أو خاص)
+              <br/>2. أنشئ ملف <code>admin-models.json</code> في المستودع (يمكن أن يكون فارغاً: <code>[]</code>)
+              <br/>3. أدخل رابط المستودع أدناه
+              <br/>4. أدخل Personal Access Token ( من GitHub → Settings → Developer Settings → Tokens )
+              <br/>5. عند إضافة نموذج، سيُرفع تلقائياً إلى المستودع، وسيظهر على جميع الأجهزة
+            </p>
+            <div class="admin-form-grid">
+              <div class="admin-form-group full">
+                <label>رابط المستودع (Repository URL) <span class="req">*</span></label>
+                <input type="text" id="settingsGithubRepo" placeholder="https://github.com/username/repo-name" />
+                <small class="admin-hint">يجب أن يحتوي المستودع على ملف admin-models.json</small>
+              </div>
+              <div class="admin-form-group full">
+                <label>Personal Access Token <span class="req">*</span></label>
+                <div class="admin-input-with-btn">
+                  <input type="password" id="settingsGithubToken" placeholder="ghp_..." />
+                  <button class="admin-btn sm" id="toggleTokenVis">إظهار</button>
+                </div>
+                <small class="admin-hint">من GitHub → Settings → Developer Settings → Personal access tokens → Fine-grained tokens</small>
+              </div>
+            </div>
+          </div>
+          <div class="admin-card-footer">
+            <button class="admin-btn" id="testGithubConnection">اختبار الاتصال</button>
+            <button class="admin-btn primary" id="saveGithubSettings">حفظ الإعدادات</button>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <h3>حالة الاتصال بـ GitHub</h3>
+          </div>
+          <div class="admin-card-body">
+            <div class="admin-info-row">
+              <span>حالة الاتصال</span>
+              <span class="admin-status-badge" id="settingsGithubStatus">—</span>
+            </div>
+            <div class="admin-info-row">
+              <span>المستودع</span>
+              <span class="admin-mono" id="settingsGithubRepoDisplay">—</span>
+            </div>
+            <div class="admin-info-row">
+              <span>عدد النماذج على GitHub</span>
+              <span class="admin-mono" id="settingsGithubModelCount">—</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <h3>المزامنة اليدوية</h3>
+          </div>
+          <div class="admin-card-body">
+            <div class="admin-actions-row">
+              <button class="admin-btn" id="pushToGithubBtn">رفع النماذج إلى GitHub ↑</button>
+              <button class="admin-btn" id="pullFromGithubBtn">جلب النماذج من GitHub ↓</button>
+            </div>
+            <p class="admin-info-text" style="margin-top:10px;color:var(--text-dim);font-size:12px">
+              الرفع: ينسخ النماذج المحلية إلى المستودع &nbsp;|&nbsp; الجلب: ينسخ النماذج من المستودع إلى المحلية
+            </p>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <h3>تصدير / استيراد</h3>
+          </div>
+          <div class="admin-card-body">
+            <div class="admin-actions-row">
+              <button class="admin-btn" id="exportModelsBtn">تصدير النماذج (JSON)</button>
+              <button class="admin-btn" id="importModelsBtn">استيراد النماذج</button>
+              <input type="file" id="importModelsInput" accept=".json" hidden />
+            </div>
+            <div class="admin-actions-row" style="margin-top:10px">
+              <button class="admin-btn" id="exportTokensBtn">تصدير التوكنات (JSON)</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-header">
+            <h3>معلومات النظام</h3>
+          </div>
+          <div class="admin-card-body">
+            <div class="admin-info-row">
+              <span>إصدار لوحة التحكم</span>
+              <span class="admin-mono">1.0.0</span>
+            </div>
+            <div class="admin-info-row">
+              <span>عدد النماذج المخصصة</span>
+              <span class="admin-mono" id="settingsModelCount">0</span>
+            </div>
+            <div class="admin-info-row">
+              <span>منفذ لوحة التحكم</span>
+              <span class="admin-mono" id="settingsPort">3456</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <div class="admin-toast-container" id="toastContainer"></div>
+
+  <script src="admin.js"></script>
+</body>
+</html>
