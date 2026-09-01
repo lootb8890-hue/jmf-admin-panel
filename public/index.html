@@ -11,13 +11,6 @@
 <body>
   <script>
     (function () {
-      var token = localStorage.getItem('admin_token');
-      if (!token) {
-        fetch('/api/auth/local-token').then(function (r) { return r.json(); }).then(function (d) {
-          if (d && d.token) { localStorage.setItem('admin_token', d.token); window.location.reload(); }
-          else { window.location.href = '/splash.html'; }
-        }).catch(function () { window.location.href = '/splash.html'; });
-      }
       var savedTheme = localStorage.getItem('admin_theme');
       if (savedTheme === 'dark') document.documentElement.classList.add('dark');
     })();

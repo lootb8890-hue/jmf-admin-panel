@@ -718,9 +718,7 @@
 
   /* ==================== الدخول ==================== */
   function initAuth() {
-    F.api('/api/auth/verify').then(function (r) {
-      if (!r || r.ok !== true) { window.location.href = '/splash.html'; }
-    }).catch(function () { window.location.href = '/splash.html'; });
+    // اللوحة مفتوحة مباشرة — لا مصادقة
   }
 
   /* ==================== الإقلاع ==================== */
@@ -744,8 +742,7 @@
     $('#logoutBtn').onclick = function () {
       F.api('/api/auth/logout', { method: 'POST' }).then(function () {
         localStorage.removeItem('admin_token');
-        window.location.href = '/splash.html';
-      });
+      }).catch(function () {});
     };
     $('#refreshAllBtn').onclick = function () { render(state.section); };
     $('#modalOverlay').onclick = function (e) { if (e.target === this) F.closeModal(); };
