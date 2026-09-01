@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>jmf coder</title>
+  <meta name="theme-color" content="#00d4aa" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #080c14;
+      color: #e6edf3;
+      min-height: 100vh;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .splash-container {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* خلفية متحركة */
+    .bg-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,212,170,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,170,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      animation: gridMove 20s linear infinite;
+    }
+
+    @keyframes gridMove {
+      0% { transform: translate(0, 0); }
+      100% { transform: translate(60px, 60px); }
+    }
+
+    .bg-glow {
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.15;
+      animation: glowPulse 4s ease-in-out infinite;
+    }
+
+    .bg-glow-1 {
+      background: #00d4aa;
+      top: -200px;
+      right: -100px;
+    }
+
+    .bg-glow-2 {
+      background: #58a6ff;
+      bottom: -200px;
+      left: -100px;
+      animation-delay: 2s;
+    }
+
+    .bg-glow-3 {
+      background: #a371f7;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 400px;
+      height: 400px;
+      animation-delay: 1s;
+    }
+
+    @keyframes glowPulse {
+      0%, 100% { opacity: 0.1; transform: scale(1); }
+      50% { opacity: 0.2; transform: scale(1.1); }
+    }
+
+    /* الشعار */
+    .logo-section {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+      animation: fadeInUp 1s ease-out;
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(40px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .logo-wrapper {
+      position: relative;
+    }
+
+    .logo-ring {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      border: 2px solid rgba(0,212,170,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: ringPulse 3s ease-in-out infinite;
+      position: relative;
+    }
+
+    .logo-ring::before {
+      content: '';
+      position: absolute;
+      inset: -8px;
+      border-radius: 50%;
+      border: 1px solid rgba(0,212,170,0.1);
+      animation: ringPulse 3s ease-in-out infinite reverse;
+    }
+
+    .logo-ring::after {
+      content: '';
+      position: absolute;
+      inset: -16px;
+      border-radius: 50%;
+      border: 1px solid rgba(0,212,170,0.05);
+    }
+
+    @keyframes ringPulse {
+      0%, 100% { border-color: rgba(0,212,170,0.2); box-shadow: 0 0 0 0 rgba(0,212,170,0.1); }
+      50% { border-color: rgba(0,212,170,0.5); box-shadow: 0 0 40px 10px rgba(0,212,170,0.1); }
+    }
+
+    .logo-icon {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #00d4aa, #0085ff);
+      border-radius: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      font-weight: 900;
+      color: #fff;
+      box-shadow: 0 8px 32px rgba(0,212,170,0.3);
+      position: relative;
+    }
+
+    .logo-icon::after {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 26px;
+      background: linear-gradient(135deg, #00d4aa, #0085ff, #a371f7);
+      z-index: -1;
+      opacity: 0.5;
+      filter: blur(8px);
+    }
+
+    .logo-text {
+      text-align: center;
+    }
+
+    .logo-title {
+      font-size: 42px;
+      font-weight: 900;
+      letter-spacing: -1px;
+      background: linear-gradient(135deg, #00d4aa, #58a6ff, #a371f7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .logo-subtitle {
+      font-size: 16px;
+      color: #8b949e;
+      margin-top: 8px;
+      font-weight: 400;
+    }
+
+    /* شريط التحميل */
+    .loader-section {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      margin-top: 48px;
+      animation: fadeInUp 1s ease-out 0.3s both;
+    }
+
+    .loader-bar {
+      width: 280px;
+      height: 4px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .loader-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #00d4aa, #58a6ff, #a371f7);
+      border-radius: 4px;
+      width: 0%;
+      animation: loadFill 3s ease-in-out forwards;
+      position: relative;
+    }
+
+    .loader-fill::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: -4px;
+      width: 12px;
+      height: 12px;
+      background: #fff;
+      border-radius: 50%;
+      box-shadow: 0 0 20px rgba(0,212,170,0.8);
+    }
+
+    @keyframes loadFill {
+      0% { width: 0%; }
+      20% { width: 25%; }
+      50% { width: 60%; }
+      80% { width: 85%; }
+      100% { width: 100%; }
+    }
+
+    .loader-status {
+      font-size: 13px;
+      color: #8b949e;
+      animation: statusFade 3s ease-in-out;
+    }
+
+    @keyframes statusFade {
+      0% { opacity: 0; }
+      10% { opacity: 1; }
+      100% { opacity: 1; }
+    }
+
+    .loader-status span {
+      color: #00d4aa;
+      font-weight: 600;
+    }
+
+    /* المعلمون المتحركون */
+    .orbit-ring {
+      position: absolute;
+      width: 320px;
+      height: 320px;
+      border-radius: 50%;
+      border: 1px dashed rgba(0,212,170,0.1);
+      animation: orbitSpin 30s linear infinite;
+      z-index: 5;
+    }
+
+    @keyframes orbitSpin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .orbit-dot {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      animation: orbitSpin 30s linear infinite reverse;
+    }
+
+    .orbit-dot:nth-child(1) { top: -6px; left: 50%; }
+    .orbit-dot:nth-child(2) { bottom: -6px; left: 50%; }
+    .orbit-dot:nth-child(3) { top: 50%; right: -6px; }
+    .orbit-dot:nth-child(4) { top: 50%; left: -6px; }
+
+    /* أجزاء عائمة */
+    .floating-particles {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+    }
+
+    .particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: rgba(0,212,170,0.3);
+      border-radius: 50%;
+      animation: float 8s ease-in-out infinite;
+    }
+
+    .particle:nth-child(1) { left: 10%; top: 20%; animation-delay: 0s; }
+    .particle:nth-child(2) { left: 80%; top: 15%; animation-delay: 1s; background: rgba(88,166,255,0.3); }
+    .particle:nth-child(3) { left: 20%; top: 70%; animation-delay: 2s; background: rgba(163,113,247,0.3); }
+    .particle:nth-child(4) { left: 75%; top: 75%; animation-delay: 3s; }
+    .particle:nth-child(5) { left: 50%; top: 10%; animation-delay: 0.5s; background: rgba(88,166,255,0.3); }
+    .particle:nth-child(6) { left: 15%; top: 45%; animation-delay: 1.5s; background: rgba(163,113,247,0.3); }
+    .particle:nth-child(7) { left: 85%; top: 50%; animation-delay: 2.5s; }
+    .particle:nth-child(8) { left: 45%; top: 85%; animation-delay: 3.5s; background: rgba(88,166,255,0.3); }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0) scale(1); opacity: 0.3; }
+      50% { transform: translateY(-30px) scale(1.5); opacity: 0.8; }
+    }
+
+    /* أزرار الإجراء */
+    .action-section {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      gap: 16px;
+      margin-top: 48px;
+      animation: fadeInUp 1s ease-out 0.6s both;
+    }
+
+    .action-btn {
+      padding: 14px 36px;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: inherit;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .action-btn.primary {
+      background: linear-gradient(135deg, #00d4aa, #00b894);
+      color: #000;
+      box-shadow: 0 4px 24px rgba(0,212,170,0.3);
+    }
+
+    .action-btn.primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(0,212,170,0.4);
+    }
+
+    .action-btn.secondary {
+      background: rgba(255,255,255,0.05);
+      color: #e6edf3;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .action-btn.secondary:hover {
+      background: rgba(255,255,255,0.1);
+      transform: translateY(-2px);
+    }
+
+    .action-btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.2));
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .action-btn:hover::after {
+      opacity: 1;
+    }
+
+    /* الإصدار */
+    .version-badge {
+      position: absolute;
+      bottom: 24px;
+      font-size: 12px;
+      color: #656d76;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <div class="splash-container">
+    <!-- خلفية -->
+    <div class="bg-grid"></div>
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+    <div class="bg-glow bg-glow-3"></div>
+
+    <!-- جسيمات عائمة -->
+    <div class="floating-particles">
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+    </div>
+
+    <!-- حلقة مدارية -->
+    <div class="orbit-ring">
+      <div class="orbit-dot">🤖</div>
+      <div class="orbit-dot">⚡</div>
+      <div class="orbit-dot">🧠</div>
+      <div class="orbit-dot">💎</div>
+    </div>
+
+    <!-- الشعار -->
+    <div class="logo-section">
+      <div class="logo-wrapper">
+        <div class="logo-ring">
+          <div class="logo-icon">j</div>
+        </div>
+      </div>
+      <div class="logo-text">
+        <div class="logo-title">jmf coder</div>
+        <div class="logo-subtitle">مساعد برمجة بالذكاء الاصطناعي</div>
+      </div>
+    </div>
+
+    <!-- شريط التحميل -->
+    <div class="loader-section">
+      <div class="loader-bar">
+        <div class="loader-fill"></div>
+      </div>
+      <div class="loader-status">
+        <span id="loadStatus">جارٍ تهيئة النظام...</span>
+      </div>
+    </div>
+
+    <!-- أزرار الإجراء -->
+    <div class="action-section" id="actionBtns" style="display:none">
+      <button class="action-btn primary" onclick="goToLogin()">تسجيل الدخول</button>
+      <button class="action-btn secondary" onclick="goToInterfaceSelect()">اختيار الواجهة</button>
+    </div>
+
+    <div class="version-badge">v2.2.0</div>
+  </div>
+
+  <script>
+    const statusEl = document.getElementById('loadStatus');
+    const actionBtns = document.getElementById('actionBtns');
+
+    const messages = [
+      'جارٍ تهيئة النظام...',
+      'กำลังเชื่อมต่อ OmniRoute...',
+      '加载模型数据...',
+      'Loading AI models...',
+      'تهيئة محركات الذكاء الاصطناعي...',
+      'جاهز!'
+    ];
+
+    let i = 0;
+    const interval = setInterval(() => {
+      i++;
+      if (i < messages.length) {
+        statusEl.textContent = messages[i];
+      }
+      if (i >= messages.length - 1) {
+        clearInterval(interval);
+        setTimeout(() => {
+          actionBtns.style.display = 'flex';
+          actionBtns.style.animation = 'fadeInUp 0.6s ease-out';
+        }, 500);
+      }
+    }, 600);
+
+    function goToLogin() {
+      window.location.href = '/login.html';
+    }
+
+    function goToInterfaceSelect() {
+      window.location.href = '/interface-select.html';
+    }
+
+    // التحقق من التسجيل السابق
+    if (localStorage.getItem('admin_token')) {
+      // إذا كان هناك توكن محفوظ، انتقل مباشرة للوحة التحكم
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 2000);
+    }
+  </script>
+</body>
+</html>

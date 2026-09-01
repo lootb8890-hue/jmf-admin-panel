@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>اختيار الواجهة — jmf coder</title>
+  <meta name="theme-color" content="#00d4aa" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #080c14;
+      color: #e6edf3;
+      min-height: 100vh;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    .select-container {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px;
+      position: relative;
+    }
+
+    /* خلفية */
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,212,170,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,170,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      z-index: 0;
+    }
+
+    .bg-glow {
+      position: fixed;
+      width: 500px;
+      height: 500px;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.12;
+      z-index: 0;
+    }
+
+    .bg-glow-1 { background: #00d4aa; top: -150px; right: -100px; }
+    .bg-glow-2 { background: #58a6ff; bottom: -150px; left: -100px; }
+
+    /* العنوان */
+    .header {
+      position: relative;
+      z-index: 10;
+      text-align: center;
+      margin-bottom: 48px;
+      animation: fadeInUp 0.6s ease-out;
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .header-icon {
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, #00d4aa, #0085ff);
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: 900;
+      color: #fff;
+      margin: 0 auto 20px;
+      box-shadow: 0 8px 32px rgba(0,212,170,0.3);
+    }
+
+    .header h1 {
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #00d4aa, #58a6ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header p {
+      font-size: 15px;
+      color: #8b949e;
+    }
+
+    /* شبكة الواجهات */
+    .interfaces-grid {
+      position: relative;
+      z-index: 10;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+      max-width: 900px;
+      width: 100%;
+      margin-bottom: 32px;
+    }
+
+    .interface-card {
+      background: rgba(22, 27, 34, 0.7);
+      backdrop-filter: blur(12px);
+      border: 2px solid rgba(48, 54, 61, 0.5);
+      border-radius: 20px;
+      padding: 32px 28px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .interface-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, transparent 40%, rgba(0,212,170,0.05));
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .interface-card:hover {
+      border-color: rgba(0,212,170,0.5);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .interface-card:hover::before {
+      opacity: 1;
+    }
+
+    .interface-card.selected {
+      border-color: #00d4aa;
+      box-shadow: 0 0 0 3px rgba(0,212,170,0.15), 0 12px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .interface-card.selected .check-mark {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .check-mark {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      width: 28px;
+      height: 28px;
+      background: #00d4aa;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #000;
+      font-weight: 800;
+      font-size: 14px;
+      opacity: 0;
+      transform: scale(0.5);
+      transition: all 0.3s ease;
+    }
+
+    .card-preview {
+      width: 100%;
+      height: 180px;
+      background: rgba(13, 17, 23, 0.6);
+      border-radius: 12px;
+      margin-bottom: 20px;
+      overflow: hidden;
+      position: relative;
+      border: 1px solid rgba(48, 54, 61, 0.3);
+    }
+
+    /* محاكاة واجهة لوحة التحكم */
+    .preview-admin {
+      padding: 12px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .preview-admin .top-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .preview-admin .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .preview-admin .dot:nth-child(1) { background: #f85149; }
+    .preview-admin .dot:nth-child(2) { background: #d29922; }
+    .preview-admin .dot:nth-child(3) { background: #3fb950; }
+
+    .preview-admin .sidebar-mock {
+      display: flex;
+      gap: 8px;
+      flex: 1;
+    }
+
+    .preview-admin .side-nav {
+      width: 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .preview-admin .nav-line {
+      height: 8px;
+      background: rgba(88, 166, 255, 0.15);
+      border-radius: 4px;
+    }
+
+    .preview-admin .nav-line.active {
+      background: rgba(0, 212, 170, 0.4);
+    }
+
+    .preview-admin .content-mock {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .preview-admin .content-line {
+      height: 8px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 4px;
+    }
+
+    .preview-admin .content-line.short { width: 60%; }
+    .preview-admin .content-line.medium { width: 80%; }
+
+    .preview-admin .cards-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .preview-admin .stat-card-mock {
+      flex: 1;
+      height: 36px;
+      background: rgba(22, 27, 34, 0.8);
+      border: 1px solid rgba(48, 54, 61, 0.4);
+      border-radius: 6px;
+    }
+
+    /* محاكاة واجهة المحادثة */
+    .preview-chat {
+      padding: 12px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .preview-chat .chat-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(48, 54, 61, 0.3);
+    }
+
+    .preview-chat .chat-avatar {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #00d4aa, #58a6ff);
+    }
+
+    .preview-chat .chat-title-text {
+      height: 6px;
+      width: 60px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 3px;
+    }
+
+    .preview-chat .messages {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow: hidden;
+    }
+
+    .preview-chat .msg {
+      max-width: 75%;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 6px;
+    }
+
+    .preview-chat .msg.user {
+      align-self: flex-end;
+      background: rgba(0, 212, 170, 0.2);
+      border: 1px solid rgba(0, 212, 170, 0.3);
+    }
+
+    .preview-chat .msg.assistant {
+      align-self: flex-start;
+      background: rgba(88, 166, 255, 0.1);
+      border: 1px solid rgba(88, 166, 255, 0.2);
+    }
+
+    .preview-chat .msg-line {
+      height: 4px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 2px;
+      margin-bottom: 2px;
+    }
+
+    .preview-chat .msg-line:last-child { width: 70%; }
+
+    .preview-chat .input-bar {
+      margin-top: auto;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .preview-chat .input-mock {
+      flex: 1;
+      height: 20px;
+      background: rgba(13, 17, 23, 0.6);
+      border: 1px solid rgba(48, 54, 61, 0.4);
+      border-radius: 6px;
+    }
+
+    .preview-chat .send-mock {
+      width: 20px;
+      height: 20px;
+      background: linear-gradient(135deg, #00d4aa, #0085ff);
+      border-radius: 50%;
+    }
+
+    /* محاكاة الوجهتين */
+    .preview-both {
+      padding: 8px;
+      height: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .preview-both .half {
+      background: rgba(13, 17, 23, 0.4);
+      border-radius: 8px;
+      border: 1px solid rgba(48, 54, 61, 0.3);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 8px;
+    }
+
+    .preview-both .half-title {
+      font-size: 5px;
+      color: #8b949e;
+      text-align: center;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    .preview-both .half-line {
+      height: 5px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 3px;
+      margin-bottom: 3px;
+    }
+
+    .preview-both .half-line.active {
+      background: rgba(0, 212, 170, 0.3);
+    }
+
+    .card-info {
+      position: relative;
+      z-index: 2;
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .card-desc {
+      font-size: 13px;
+      color: #8b949e;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+
+    .card-features {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .feature-tag {
+      padding: 4px 10px;
+      background: rgba(0, 212, 170, 0.1);
+      border: 1px solid rgba(0, 212, 170, 0.2);
+      border-radius: 6px;
+      font-size: 11px;
+      color: #00d4aa;
+      font-weight: 500;
+    }
+
+    /* زر التأكيد */
+    .confirm-section {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      gap: 16px;
+      animation: fadeInUp 0.6s ease-out 0.3s both;
+    }
+
+    .confirm-btn {
+      padding: 14px 40px;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: inherit;
+    }
+
+    .confirm-btn.primary {
+      background: linear-gradient(135deg, #00d4aa, #00b894);
+      color: #000;
+      box-shadow: 0 4px 20px rgba(0,212,170,0.3);
+    }
+
+    .confirm-btn.primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(0,212,170,0.4);
+    }
+
+    .confirm-btn.primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .confirm-btn.secondary {
+      background: rgba(255,255,255,0.05);
+      color: #e6edf3;
+      border: 1px solid rgba(48, 54, 61, 0.6);
+    }
+
+    .confirm-btn.secondary:hover {
+      background: rgba(255,255,255,0.1);
+    }
+
+    .back-link {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #8b949e;
+      text-decoration: none;
+      font-size: 14px;
+      transition: color 0.2s;
+    }
+
+    .back-link:hover {
+      color: #e6edf3;
+    }
+  </style>
+</head>
+<body>
+  <div class="select-container">
+    <div class="bg-grid"></div>
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+
+    <a href="/splash.html" class="back-link">← العودة</a>
+
+    <div class="header">
+      <div class="header-icon">j</div>
+      <h1>اختر واجهتك</h1>
+      <p>يمكنك اختيار واجهة واحدة أو كلاهما</p>
+    </div>
+
+    <div class="interfaces-grid">
+      <!-- واجهة لوحة التحكم -->
+      <div class="interface-card" data-interface="admin" onclick="selectInterface('admin')">
+        <div class="check-mark">✓</div>
+        <div class="card-preview">
+          <div class="preview-admin">
+            <div class="top-bar">
+              <div class="dot"></div>
+              <div class="dot"></div>
+              <div class="dot"></div>
+            </div>
+            <div class="sidebar-mock">
+              <div class="side-nav">
+                <div class="nav-line active"></div>
+                <div class="nav-line"></div>
+                <div class="nav-line"></div>
+                <div class="nav-line"></div>
+                <div class="nav-line"></div>
+              </div>
+              <div class="content-mock">
+                <div class="content-line short"></div>
+                <div class="content-line medium"></div>
+                <div class="cards-row">
+                  <div class="stat-card-mock"></div>
+                  <div class="stat-card-mock"></div>
+                  <div class="stat-card-mock"></div>
+                  <div class="stat-card-mock"></div>
+                </div>
+                <div class="content-line"></div>
+                <div class="content-line medium"></div>
+                <div class="content-line short"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card-info">
+          <div class="card-title">لوحة التحكم الإدارية</div>
+          <div class="card-desc">إدارة شاملة للنماذج والتوكنات و OmniRoute مع إحصائيات متقدمة وتحكم كامل</div>
+          <div class="card-features">
+            <span class="feature-tag">إدارة النماذج</span>
+            <span class="feature-tag">إدارة التوكنات</span>
+            <span class="feature-tag">OmniRoute</span>
+            <span class="feature-tag">التوجيه</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- واجهة المحادثة -->
+      <div class="interface-card" data-interface="chat" onclick="selectInterface('chat')">
+        <div class="check-mark">✓</div>
+        <div class="card-preview">
+          <div class="preview-chat">
+            <div class="chat-header">
+              <div class="chat-avatar"></div>
+              <div class="chat-title-text"></div>
+            </div>
+            <div class="messages">
+              <div class="msg user">
+                <div class="msg-line"></div>
+                <div class="msg-line"></div>
+              </div>
+              <div class="msg assistant">
+                <div class="msg-line"></div>
+                <div class="msg-line"></div>
+                <div class="msg-line"></div>
+              </div>
+              <div class="msg user">
+                <div class="msg-line"></div>
+              </div>
+              <div class="msg assistant">
+                <div class="msg-line"></div>
+                <div class="msg-line"></div>
+              </div>
+            </div>
+            <div class="input-bar">
+              <div class="input-mock"></div>
+              <div class="send-mock"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card-info">
+          <div class="card-title">مساعد المحادثة</div>
+          <div class="card-desc">واجهة محادثة تفاعلية مع دعم الأكواد والصور وأدوات الذكاء الاصطناعي المتقدمة</div>
+          <div class="card-features">
+            <span class="feature-tag">محادثة مباشرة</span>
+            <span class="feature-tag">توليد أكواد</span>
+            <span class="feature-tag">تحليل الصور</span>
+            <span class="feature-tag">مستكشف الملفات</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- كلا الواجهتين -->
+      <div class="interface-card" data-interface="both" onclick="selectInterface('both')">
+        <div class="check-mark">✓</div>
+        <div class="card-preview">
+          <div class="preview-both">
+            <div class="half">
+              <div class="half-title">لوحة التحكم</div>
+              <div class="half-line active"></div>
+              <div class="half-line"></div>
+              <div class="half-line"></div>
+              <div class="half-line active"></div>
+              <div class="half-line"></div>
+            </div>
+            <div class="half">
+              <div class="half-title">المحادثة</div>
+              <div class="half-line"></div>
+              <div class="half-line active"></div>
+              <div class="half-line"></div>
+              <div class="half-line"></div>
+              <div class="half-line active"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card-info">
+          <div class="card-title">كلا الواجهتين</div>
+          <div class="card-desc">الوصول الكامل إلى لوحة التحكم الإدارية ومساعد المحادثة في مكان واحد</div>
+          <div class="card-features">
+            <span class="feature-tag">لوحة تحكم</span>
+            <span class="feature-tag">محادثة</span>
+            <span class="feature-tag">إدارة كاملة</span>
+            <span class="feature-tag">أمثلة للجميع</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="confirm-section">
+      <button class="confirm-btn secondary" onclick="goBack()">← العودة</button>
+      <button class="confirm-btn primary" id="confirmBtn" disabled onclick="confirmSelection()">تأكيد الاختيار</button>
+    </div>
+  </div>
+
+  <script>
+    let selectedInterface = null;
+
+    function selectInterface(type) {
+      selectedInterface = type;
+      document.querySelectorAll('.interface-card').forEach(c => c.classList.remove('selected'));
+      document.querySelector(`[data-interface="${type}"]`).classList.add('selected');
+      document.getElementById('confirmBtn').disabled = false;
+    }
+
+    function confirmSelection() {
+      if (!selectedInterface) return;
+      localStorage.setItem('jmf-interface', selectedInterface);
+      window.location.href = '/login.html';
+    }
+
+    function goBack() {
+      window.location.href = '/splash.html';
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>لوحة إدارة jmf SaaS</title>
+  <meta name="theme-color" content="#0ea5e9" />
+  <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg" />
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <script>
+    (function () {
+      var token = localStorage.getItem('admin_token');
+      if (!token) {
+        fetch('/api/auth/local-token').then(function (r) { return r.json(); }).then(function (d) {
+          if (d && d.token) { localStorage.setItem('admin_token', d.token); window.location.reload(); }
+          else { window.location.href = '/splash.html'; }
+        }).catch(function () { window.location.href = '/splash.html'; });
+      }
+      var savedTheme = localStorage.getItem('admin_theme');
+      if (savedTheme === 'dark') document.documentElement.classList.add('dark');
+    })();
+  </script>
+
+  <div class="app" id="adminApp">
+    <!-- الشريط الجانبي -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">j</div>
+        <div class="brand-meta">
+          <span class="brand-name">jmf SaaS</span>
+          <span class="brand-badge">Ops</span>
+        </div>
+      </div>
+
+      <nav class="nav" id="nav">
+        <button class="nav-item active" data-section="dashboard">◈<span>نظرة عامة</span></button>
+        <button class="nav-item" data-section="analytics">📈<span>التحليلات</span></button>
+        <button class="nav-item" data-section="subscribers">👥<span>المستخدمون</span></button>
+        <button class="nav-item" data-section="plans">💳<span>الباقات والأسعار</span></button>
+        <button class="nav-item" data-section="broadcasts">📢<span>الإعلانات والبث</span></button>
+        <button class="nav-item" data-section="health">🩺<span>صحة المزوّدين</span></button>
+        <button class="nav-item" data-section="keys">🔑<span>مفاتيح الصور</span></button>
+        <button class="nav-item" data-section="models">🧩<span>النماذج</span></button>
+        <button class="nav-item" data-section="providers">🔌<span>المزوّدون والبوابة</span></button>
+        <button class="nav-item" data-section="activity">🕘<span>سجل التدقيق</span></button>
+        <button class="nav-item" data-section="settings">⚙️<span>الإعدادات</span></button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="btn btn-ghost btn-block" id="themeToggle">🌙 الوضع الليلي</button>
+        <div class="gw-indicator" id="gwIndicator"><span class="gw-dot"></span><span>OmniRoute: …</span></div>
+        <button class="btn btn-ghost btn-block" id="logoutBtn">تسجيل الخروج</button>
+        <div class="version" id="adminVersionFooter">…</div>
+      </div>
+    </aside>
+
+    <!-- المحتوى -->
+    <main class="main">
+      <header class="topbar">
+        <div class="tb-title">
+          <h1 id="pageTitle">نظرة عامة</h1>
+          <p class="subtitle" id="pageSubtitle"></p>
+        </div>
+        <div class="tb-actions">
+          <button class="btn btn-primary" id="refreshAllBtn">↻ تحديث</button>
+        </div>
+      </header>
+      <div class="view" id="view"></div>
+    </main>
+  </div>
+
+  <!-- صناديق حواريّة -->
+  <div class="modal-overlay hidden" id="modalOverlay">
+    <div class="modal" id="modalBox"></div>
+  </div>
+  <div class="toast-wrap" id="toasts"></div>
+
+  <script src="admin.js"></script>
+</body>
+</html>

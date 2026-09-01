@@ -1,0 +1,51 @@
+{
+  "name": "jmf-admin-panel",
+  "productName": "jmf admin",
+  "version": "2.3.2",
+  "author": "jmf",
+  "private": true,
+  "description": "لوحة تحكم إدارية — إدارة نماذج الذكاء الاصطناعي",
+  "main": "main.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "app": "electron ."
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.112.3",
+    "express": "^4.18.2"
+  },
+  "build": {
+    "appId": "com.jmf.admin",
+    "productName": "jmf admin",
+    "electronVersion": "43.4.0",
+    "directories": {
+      "output": "../dist-admin"
+    },
+    "files": [
+      "**/*",
+      "!api/**",
+      "!netlify/**",
+      "!supabase/**",
+      "!vercel.json",
+      "!netlify.toml",
+      "!.env"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "jmf admin",
+      "artifactName": "${productName} Setup ${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName} ${version}.${ext}"
+    }
+  }
+}
