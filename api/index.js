@@ -62,6 +62,11 @@ app.get('/api/models', async (_req, res) => {
       video: m.video,
       usage: m.usage || 'text',
       active: m.active,
+      visible: m.visible !== false,
+      keyId: m.key_id || null,
+      trialDays: m.trial_days || null,
+      trialRequests: m.trial_requests || null,
+      requestLimit: m.request_limit || null,
       description: m.description,
       createdAt: m.created_at ? new Date(m.created_at).getTime() : null,
       updatedAt: m.updated_at ? new Date(m.updated_at).getTime() : null,
@@ -75,7 +80,7 @@ app.get('/api/models', async (_req, res) => {
 app.post('/api/models', async (req, res) => {
   try {
     const db = getSupabase();
-    const { id, name, provider, context, maxOutput, costIn, costOut, free, vision, video, active, description, usage } = req.body;
+    const { id, name, provider, context, maxOutput, costIn, costOut, free, vision, video, active, description, usage, keyId, visible, trialDays, trialRequests, requestLimit } = req.body;
     if (!id || !name || !provider) {
       return res.status(400).json({ error: 'الحقول المطلوبة: id, name, provider' });
     }
@@ -83,7 +88,7 @@ app.post('/api/models', async (req, res) => {
     if (existing) {
       return res.status(409).json({ error: 'النموذج موجود بالفعل' });
     }
-    const { data, error } = await db.from('models').insert({
+    const full = {
       id, name, provider,
       context: context || null,
       max_output: maxOutput || null,
@@ -92,10 +97,25 @@ app.post('/api/models', async (req, res) => {
       free: !!free,
       vision: !!vision,
       video: !!video,
-      usage: usage || 'text',
+      image: !!(usage === 'image' || req.body.image),
       active: active !== false,
       description: description || '',
-    }).select().single();
+    };
+    // Try with extended columns (usage, visible, key_id, etc.) — may not exist yet
+    try {
+      full.usage = usage || 'text';
+      full.visible = visible !== false;
+      full.key_id = keyId || null;
+      full.trial_days = trialDays || null;
+      full.trial_requests = trialRequests || null;
+      full.request_limit = requestLimit || null;
+    } catch (_) {}
+    let { data, error } = await db.from('models').insert(full).select().single();
+    if (error && String(error.message || '').includes('column')) {
+      // Retry with basic columns only
+      const basic = { id, name, provider, context: context || null, max_output: maxOutput || null, cost_in: costIn || null, cost_out: costOut || null, free: !!free, vision: !!vision, video: !!video, image: !!(usage === 'image' || req.body.image), active: active !== false, description: description || '' };
+      ({ data, error } = await db.from('models').insert(basic).select().single());
+    }
     if (error) throw error;
     res.json({ ok: true, model: data });
   } catch (e) {
@@ -116,11 +136,35 @@ app.put('/api/models/:id', async (req, res) => {
     if (req.body.free !== undefined) updates.free = req.body.free;
     if (req.body.vision !== undefined) updates.vision = req.body.vision;
     if (req.body.video !== undefined) updates.video = req.body.video;
-    if (req.body.usage !== undefined) updates.usage = req.body.usage;
     if (req.body.active !== undefined) updates.active = req.body.active;
+    if (req.body.image !== undefined) updates.image = req.body.image;
     if (req.body.description !== undefined) updates.description = req.body.description;
+    if (req.body.usage !== undefined) updates.usage = req.body.usage;
+    if (req.body.visible !== undefined) updates.visible = req.body.visible;
+    if (req.body.keyId !== undefined) updates.key_id = req.body.keyId;
+    if (req.body.trialDays !== undefined) updates.trial_days = req.body.trialDays;
+    if (req.body.trialRequests !== undefined) updates.trial_requests = req.body.trialRequests;
+    if (req.body.requestLimit !== undefined) updates.request_limit = req.body.requestLimit;
     updates.updated_at = new Date().toISOString();
-    const { data, error } = await db.from('models').update(updates).eq('id', req.params.id).select().single();
+    let { data, error } = await db.from('models').update(updates).eq('id', req.params.id).select().single();
+    if (error && String(error.message || '').includes('column')) {
+      // Retry with only basic columns
+      const basic = {};
+      if (updates.name !== undefined) basic.name = updates.name;
+      if (updates.provider !== undefined) basic.provider = updates.provider;
+      if (updates.context !== undefined) basic.context = updates.context;
+      if (updates.max_output !== undefined) basic.max_output = updates.max_output;
+      if (updates.cost_in !== undefined) basic.cost_in = updates.cost_in;
+      if (updates.cost_out !== undefined) basic.cost_out = updates.cost_out;
+      if (updates.free !== undefined) basic.free = updates.free;
+      if (updates.vision !== undefined) basic.vision = updates.vision;
+      if (updates.video !== undefined) basic.video = updates.video;
+      if (updates.active !== undefined) basic.active = updates.active;
+      if (updates.image !== undefined) basic.image = updates.image;
+      if (updates.description !== undefined) basic.description = updates.description;
+      basic.updated_at = updates.updated_at;
+      ({ data, error } = await db.from('models').update(basic).eq('id', req.params.id).select().single());
+    }
     if (error) throw error;
     res.json({ ok: true, model: data });
   } catch (e) {
@@ -295,13 +339,15 @@ app.post('/api/gateway/import-free', async (_req, res) => {
 app.get('/api/public/models', async (_req, res) => {
   try {
     const db = getSupabase();
-    const { data, error } = await db.from('models').select('id, name, provider, context, max_output, cost_in, cost_out, free, vision, video, active, description').eq('active', true).order('name');
+    const { data, error } = await db.from('models').select('id, name, provider, context, max_output, cost_in, cost_out, free, vision, video, image, active, description').eq('active', true).order('name');
     if (error) throw error;
     const models = (data || []).map(m => ({
       id: m.id, name: m.name, provider: m.provider,
       context: m.context, maxOutput: m.max_output,
       costIn: m.cost_in, costOut: m.cost_out,
       free: m.free, vision: m.vision, video: m.video,
+      image: !!m.image,
+      visible: true,
       description: m.description,
     }));
     res.json({ ok: true, models, count: models.length });
@@ -486,6 +532,244 @@ app.get('/api/health/keys', async (_req, res) => {
     res.json({ ok: true, keys: [], summary: { total: 0, ok: 0, low: 0, exhausted: 0, disabled: 0 } });
   }
 });
+
+/* ---------------------------- مسارات API — صحة المزوّدين ---------------------------- */
+
+function md5Short(str) {
+  let h1 = 0xdeadbeef ^ 0, h2 = 0x41c6ce57 ^ 0;
+  for (let i = 0; i < String(str).length; i++) {
+    const ch = String(str).charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  return (h1 >>> 0).toString(16).slice(0, 8) + (h2 >>> 0).toString(16).slice(0, 4);
+}
+
+function normalizeProvider(p) {
+  const s = String(p || '').toLowerCase().trim();
+  if (s === 'gemini' || s === 'google') return 'google';
+  return s;
+}
+
+function maskKey(key) {
+  const s = String(key || '');
+  if (!s) return '';
+  if (s.length <= 8) return '••••••••';
+  return s.slice(0, 4) + '••••' + s.slice(-4);
+}
+
+function getKeyId(k) {
+  if (!k) return '';
+  const s = String(k.key || k.id || k);
+  return s.slice(0, 10) + '_' + md5Short(s).slice(-4);
+}
+
+// قائمة المزوّدين بصحة موجزة (المزوّدون الموجودون فعلاً فقط)
+app.get('/api/health/providers', async (_req, res) => {
+  try {
+    const db = getSupabase();
+    const { data, error } = await db.from('api_keys').select('*');
+    if (error) throw error;
+    const today = new Date().toISOString().slice(0, 10);
+    const byProv = {};
+    for (const k of (data || [])) {
+      const p = normalizeProvider(k.provider || 'google');
+      if (!byProv[p]) byProv[p] = { provider: p, keys: 0, enabledKeys: 0, totalQuota: 0, usedToday: 0, errors: 0, status: 'ok', lastActive: null };
+      const used = k.last_reset && String(k.last_reset).slice(0, 10) === today ? (Number(k.used_today) || 0) : 0;
+      const quota = Number(k.quota_daily) || 1500;
+      byProv[p].keys++;
+      if (k.enabled !== false) byProv[p].enabledKeys++;
+      byProv[p].totalQuota += quota;
+      byProv[p].usedToday += used;
+      if (used >= quota) byProv[p].status = 'exhausted';
+      else if (used >= quota * 0.8) byProv[p].status = 'low';
+    }
+    res.json({ ok: true, providers: Object.values(byProv) });
+  } catch (e) {
+    res.json({ ok: true, providers: [] });
+  }
+});
+
+// مجمّع المفاتيح الموحّد (صفحة «المفاتيح») — من جدول api_keys في Supabase
+app.get('/api/keys/pool', async (_req, res) => {
+  try {
+    const db = getSupabase();
+    const { data, error } = await db.from('api_keys').select('*').order('created_at', { ascending: false });
+    if (error) throw error;
+    const today = new Date().toISOString().slice(0, 10);
+    const merged = (data || []).map(k => {
+      const used = k.last_reset && String(k.last_reset).slice(0, 10) === today ? (Number(k.used_today) || 0) : 0;
+      const quota = Number(k.quota_daily) || 1500;
+      const remaining = Math.max(quota - used, 0);
+      return {
+        id: k.id || getKeyId(k),
+        provider: normalizeProvider(k.provider || 'google'),
+        baseUrl: k.base_url || '',
+        label: k.label || '',
+        keyMasked: maskKey(k.key),
+        key: k.key,
+        source: 'cloud',
+        status: k.enabled === false ? 'disabled' : (remaining <= 0 ? 'exhausted' : 'active'),
+        requests: used,
+        errors: Number(k.errors) || 0,
+        latency: Number(k.latency_ms) || 0,
+        quotaDaily: quota,
+        usedToday: used,
+        quotaRemaining: remaining,
+        enabled: k.enabled !== false,
+        lastReset: k.last_reset || null,
+        createdAt: k.created_at || Date.now(),
+      };
+    });
+    const totalQuota = merged.reduce((s, k) => s + k.quotaDaily, 0);
+    const totalUsed = merged.reduce((s, k) => s + k.usedToday, 0);
+    res.json({
+      ok: true,
+      keys: merged,
+      summary: {
+        totalKeys: merged.length,
+        activeKeys: merged.filter(k => k.enabled).length,
+        totalQuota,
+        totalUsed,
+        totalRemaining: Math.max(0, totalQuota - totalUsed),
+      },
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// إضافة مفتاح
+app.post('/api/keys/pool', async (req, res) => {
+  try {
+    const db = getSupabase();
+    const provider = normalizeProvider(req.body.provider || 'google');
+    const key = String(req.body.key || '').trim();
+    if (!key) return res.status(400).json({ ok: false, error: 'المفتاح مطلوب' });
+    const rec = {
+      provider,
+      key,
+      label: String(req.body.label || '').trim(),
+      quota_daily: Number(req.body.quotaDaily) || 1500,
+      base_url: req.body.baseUrl || null,
+      enabled: req.body.enabled !== false,
+      used_today: 0,
+      last_reset: new Date().toISOString().slice(0, 10),
+    };
+    const { data, error } = await db.from('api_keys').insert(rec).select().single();
+    if (error) throw error;
+    res.json({ ok: true, added: [{ id: data.id, label: data.label, keyMasked: maskKey(data.key) }] });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// تبديل تفعيل مفتاح
+app.patch('/api/keys/pool/:id', async (req, res) => {
+  try {
+    const db = getSupabase();
+    const updates = {};
+    if (req.body.enabled !== undefined) updates.enabled = !!req.body.enabled;
+    if (req.body.quota_daily !== undefined) updates.quota_daily = Number(req.body.quota_daily);
+    if (req.body.label !== undefined) updates.label = req.body.label;
+    updates.updated_at = new Date().toISOString();
+    const { error } = await db.from('api_keys').update(updates).eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// إعادة ضبط الكوتة اليومية لمفتاح
+app.post('/api/keys/pool/:id/reset', async (req, res) => {
+  try {
+    const db = getSupabase();
+    const { error } = await db.from('api_keys').update({ used_today: 0, last_reset: new Date().toISOString().slice(0, 10), updated_at: new Date().toISOString() }).eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// حذف مفتاح
+app.delete('/api/keys/pool/:id', async (req, res) => {
+  try {
+    const db = getSupabase();
+    const { error } = await db.from('api_keys').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// صحة النظام
+app.get('/api/system/health', async (_req, res) => {
+  try {
+    const db = getSupabase();
+    const { count: modelCount } = await db.from('models').select('*', { count: 'exact', head: true });
+    const { count: keyCount } = await db.from('api_keys').select('*', { count: 'exact', head: true });
+    res.json({ ok: true, status: 'healthy', supabase: true, modelCount: modelCount || 0, keyCount: keyCount || 0, platform: 'vercel+supabase' });
+  } catch (e) {
+    res.json({ ok: false, status: 'degraded', supabase: false, error: e.message });
+  }
+});
+
+/* ---------------------------- مسارات API — المستخدمون ---------------------------- */
+
+app.get('/api/users/stats', async (_req, res) => {
+  try {
+    const db = getSupabase();
+    const usersByEmail = new Map();
+    const { data: profiles, error: pErr } = await db.from('user_profiles').select('*').order('updated_at', { ascending: false }).limit(1000);
+    if (!pErr) {
+      for (const p of (profiles || [])) {
+        usersByEmail.set(String(p.email || p.user_id || '').toLowerCase(), {
+          id: p.user_id,
+          email: p.email || p.user_id,
+          name: (p.email || p.user_id || '').split('@')[0],
+          plan: p.plan || 'free',
+          imagesTotal: Number(p.images_total) || 0,
+          imagesToday: Number(p.images_today) || 0,
+          visionToday: Number(p.vision_today) || 0,
+          lastReset: p.last_reset || null,
+          lastActive: p.updated_at || p.created_at || null,
+          createdAt: p.created_at || null,
+        });
+      }
+    }
+    const { data: usage, error: uErr } = await db.from('key_usage').select('user_id,user_email,count,kind,cost_usd,created_at,status').not('user_id', 'is', null).order('created_at', { ascending: false }).limit(5000);
+    if (!uErr) {
+      for (const r of (usage || [])) {
+        const email = String(r.user_email || '').toLowerCase();
+        const key = email || String(r.user_id || 'anon');
+        if (!usersByEmail.has(key)) {
+          usersByEmail.set(key, {
+            id: r.user_id, email: r.user_email || r.user_id, name: (r.user_email || r.user_id || '').split('@')[0], plan: 'free', imagesTotal: 0, imagesToday: 0, visionToday: 0, lastActive: r.created_at, createdAt: r.created_at,
+          });
+        }
+        const u = usersByEmail.get(key);
+        const c = Number(r.count) || 1;
+        u.totalRequests = (u.totalRequests || 0) + c;
+        u.totalCost = (u.totalCost || 0) + (Number(r.cost_usd) || 0);
+        if (r.kind === 'image') u.imagesTotal = (u.imagesTotal || 0) + c;
+        if (r.status === 'error') u.errors = (u.errors || 0) + c;
+        if (!u.lastActive || String(r.created_at || '') > String(u.lastActive || '')) u.lastActive = r.created_at;
+      }
+    }
+    let users = [...usersByEmail.values()].map(u => ({ ...u, totalRequests: u.totalRequests || 0, totalCost: numFmt(u.totalCost) }));
+    users = users.sort((a, b) => (b.totalRequests || 0) - (a.totalRequests || 0));
+    res.json({ ok: true, users, source: profiles && profiles.length ? 'supabase' : 'usage' });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+function numFmt(n) {
+  return Math.round((Number(n) || 0) * 10000) / 10000;
+}
 
 /* ---------------------------- مسارات API — الباقات والاشتراكات ---------------------------- */
 
