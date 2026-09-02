@@ -778,18 +778,6 @@
   }
 
   /* ==================== الإقلاع ==================== */
-  let autoRefreshTimer = null;
-  function startAutoRefresh() {
-    if (autoRefreshTimer) clearInterval(autoRefreshTimer);
-    autoRefreshTimer = setInterval(function () {
-      var lu = $('#lastUpdated');
-      if (lu) lu.textContent = 'آخر تحديث: ' + new Date().toLocaleTimeString('ar-EG');
-      // لا تحدّث أثناء فتح نافذة أو عند التركيز على حقل إدخال (حتى لا يضطرب النص)
-      var active = document.activeElement;
-      if (!$('#modalOverlay').classList.contains('hidden') || (active && active.tagName && /INPUT|SELECT|TEXTAREA/.test(active.tagName))) return;
-      render(state.section);
-    }, 3000);
-  }
   function boot() {
     initAuth();
     $('#adminApp').classList.remove('hidden');
@@ -835,7 +823,6 @@
     F.api('/api/info').then(function (r) { $('#adminVersionFooter').textContent = 'v' + (r.version || '—'); });
 
     render('dashboard');
-    startAutoRefresh();
   }
 
   function render(section) {
