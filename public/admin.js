@@ -20,8 +20,8 @@
     plans: ['الباقات والأسعار', 'تحكم كامل بخطط الاشتراك والعروض'],
     broadcasts: ['الإعلانات والبث', 'نشر رسائل تصل لجميع المستخدمين'],
     health: ['صحة المزوّدين', 'حالة المفاتيح والكوتة والمزوّدين'],
-    keys: ['مفاتيح الصور', 'مجمّع المفاتيح اليومي وتوزيع الأحمال'],
-    models: ['النماذج', 'إدارة نماذج المحادثة والتوليد'],
+    keys: ['المفاتيح', 'إدارة مفاتيح جميع المزوّدين وربطها بالنماذج'],
+    models: ['النماذج', 'إدارة نماذج المحادثة والتوليد وربط كل نموذج بمفتاحه'],
     providers: ['المزوّدون والبوابة', 'مفاتيح الدردشة وحالة OmniRoute'],
     activity: ['سجل التدقيق', 'أرشيف زمني موحّد لكل العمليات'],
     settings: ['الإعدادات', 'إعدادات اللوحة والتوجيه والضغط'],
@@ -58,13 +58,16 @@
     var t = TITLES[section] || [section, ''];
     $('#pageTitle').textContent = t[0];
     $('#pageSubtitle').textContent = t[1];
+    var lu = $('#lastUpdated');
+    if (lu) lu.textContent = 'آخر تحديث: ' + new Date().toLocaleTimeString('ar-EG');
     render(section);
   }
 
   /* ==================== لوحة المعلومات ==================== */
   function renderDashboard() {
     var v = $('#view');
-    v.innerHTML = '<div class="muted">جاري التحميل…</div>';
+    var isFirstLoad = !$('#statGridWrap');
+    if (isFirstLoad) v.innerHTML = '<div class="muted">جاري التحميل…</div>';
     Promise.all([
       F.api('/api/analytics/overview'),
       F.api('/api/health/keys'),
@@ -81,8 +84,8 @@
       var all = ov.all || {};
       var keysSum = health.summary || {};
 
-      v.innerHTML = ''
-        + '<div class="stat-grid">'
+      var html = ''
+        + '<div id="statGridWrap" class="stat-grid">'
         + statCard('ic-blue', ov.modelCount || 0, 'نموذج مُفعل', 'من لوحة النماذج')
         + statCard('ic-teal', fmtNum(today.requests || 0), 'طلبات اليوم', fmtNum(all.requests || 0) + ' إجمالي')
         + statCard('ic-amber', (keysSum.ok || 0) + '/' + (keysSum.total || 0), 'مفاتيح صحيحة', (keysSum.low || 0) + ' منخفضة • ' + (keysSum.exhausted || 0) + ' منتهية')
@@ -103,10 +106,11 @@
         + sysRow('زمن التشغيل', sys.uptime ? Math.round(sys.uptime / 60) + ' دقيقة' : '—', 'info')
         + '</div></div>';
 
+      v.innerHTML = html;
       loadTimeline('#miniChart', 14, true);
       bindGo();
     }).catch(function () {
-      v.innerHTML = '<div class="empty">تعذر تحميل البيانات</div>';
+      if (isFirstLoad) v.innerHTML = '<div class="empty">تعذر تحميل البيانات</div>';
     });
   }
   function statCard(cls, val, lbl, mini) {
@@ -442,10 +446,13 @@
     });
   }
 
-  /* ==================== مفاتيح الصور ==================== */
+  /* ==================== المفاتيح ==================== */
+  var KEY_PROVIDERS = ['google', 'openrouter', 'groq', 'openai', 'anthropic', 'deepseek', 'mistral', 'omniroute'];
   function renderKeys() {
     var v = $('#view');
-    v.innerHTML = '<div class="toolbar"><input type="search" id="keySearch" placeholder="بحث…"><button class="btn" onclick="loadKeys()">↻</button><button class="btn btn-primary" onclick="window.__addKey()">+ مفتاح</button></div><div id="keyBody"><div class="empty">جاري التحميل…</div></div>';
+    v.innerHTML = ''
+      + '<div class="toolbar"><input type="search" id="keySearch" placeholder="بحث…"><button class="btn" onclick="loadKeys()">↻</button><button class="btn btn-primary" onclick="window.__addKey()">+ مفتاح</button></div>'
+      + '<div id="keyBody"><div class="empty">جاري التحميل…</div></div>';
     loadKeys();
     $('#keySearch').addEventListener('input', loadKeys);
   }
@@ -476,15 +483,22 @@
     F.api('/api/keys/pool/' + encodeURIComponent(id), { method: 'DELETE' }).then(function () { F.toast('تم الحذف', 'ok'); loadKeys(); });
   };
   window.__addKey = function () {
-    F.modal('<h3>إضافة مفتاح صور</h3><div class="form-grid">'
-      + '<div class="field"><label>المزوّد</label><input id="kProv" value="google"></div>'
-      + '<div class="field"><label>المفتاح</label><input id="kKey" placeholder="AIza…"></div>'
+    F.modal('<h3>إضافة مفتاح</h3><div class="form-grid">'
+      + '<div class="field"><label>المزوّد</label><select id="kProv">' + KEY_PROVIDERS.map(function (p) { return '<option value="' + p + '"' + (p === 'google' ? ' selected' : '') + '>' + p + '</option>'; }).join('') + '</select></div>'
+      + '<div class="field"><label>المفتاح</label><input id="kKey" placeholder="AIza… / sk-…"></div>'
       + '<div class="field"><label>التسمية</label><input id="kLabel" placeholder="اختياري"></div>'
       + '<div class="field"><label>الكوتة اليومية</label><input id="kQuota" type="number" value="1500"></div>'
+      + '<div class="field full"><label>رابط المنشأ (اختياري)</label><input id="kBaseUrl" placeholder="https://api.example.com/v1"></div>'
       + '</div><div class="modal-actions"><button class="btn" onclick="window.__closeModal()">إلغاء</button><button class="btn btn-primary" onclick="window.__saveKey()">حفظ</button></div>');
   };
   window.__saveKey = function () {
-    var body = { provider: $('#kProv').value.trim(), key: $('#kKey').value.trim(), label: $('#kLabel').value.trim(), quotaDaily: Number($('#kQuota').value) || 1500 };
+    var body = {
+      provider: $('#kProv').value.trim(),
+      key: $('#kKey').value.trim(),
+      label: $('#kLabel').value.trim(),
+      quotaDaily: Number($('#kQuota').value) || 1500,
+      baseUrl: ($('#kBaseUrl') ? $('#kBaseUrl').value.trim() : '') || null
+    };
     if (!body.key) { F.toast('المفتاح مطلوب', 'err'); return; }
     F.api('/api/keys/pool', { method: 'POST', body: body }).then(function (r) {
       if (r.ok) { F.toast('تمت الإضافة والمزامنة', 'ok'); F.closeModal(); loadKeys(); }
@@ -510,17 +524,23 @@
         if (q && !(m.name || '').toLowerCase().includes(q) && !(m.id || '').toLowerCase().includes(q) && !(m.provider || '').toLowerCase().includes(q)) return false;
         return true;
       });
-      $('#modelBody').innerHTML = '<div class="card table-card"><table><thead><tr><th>الاسم</th><th>المعرّف</th><th>المزوّد</th><th>النوع</th><th>التكلفة</th><th>الحالة</th><th>إجراءات</th></tr></thead><tbody>'
+      $('#modelBody').innerHTML = '<div class="card table-card"><table><thead><tr><th>الاسم</th><th>المعرّف</th><th>المزوّد</th><th>النوع</th><th>التكلفة</th><th>الرؤية</th><th>تجريبي/حد</th><th>الحالة</th><th>إجراءات</th></tr></thead><tbody>'
         + models.map(function (m) {
+          const keyLink = m.keyId ? '<span class="tag tag-info" title="مرتبط بمفتاح">🔗 ' + esc(m.keyId) + '</span>' : '<span class="tag tag-mute">🔑 تلقائي</span>';
+          const vis = m.visible === false ? '<span class="tag tag-warn">مخفي</span>' : '<span class="tag tag-ok">ظاهر</span>';
+          const trial = m.trialDays ? '<span class="tag tag-warn">🧪 ' + esc(m.trialDays) + ' يوم</span>' : '';
+          const limit = m.requestLimit ? '<span class="tag tag-mute">🧾 ' + fmtNum(m.requestLimit) + ' طلب</span>' : '';
           return '<tr><td>' + esc(m.name) + '</td><td>' + mon(m.id) + '</td><td>' + esc(m.provider) + '</td>'
-            + '<td><span class="tag tag-info">' + esc(m.usage || 'text') + '</span></td>'
+            + '<td><span class="tag tag-info">' + esc(m.usage || 'text') + '</span> ' + keyLink + '</td>'
             + '<td>' + fmtUsd(m.costIn || 0) + '/' + fmtUsd(m.costOut || 0) + '</td>'
+            + '<td>' + vis + '</td>'
+            + '<td>' + (trial || '') + ' ' + (limit || '') + (trial || limit ? '' : '<span class="tag tag-mute">—</span>') + '</td>'
             + '<td><span class="tag tag-' + (m.active !== false ? 'ok' : 'mute') + '">' + (m.active !== false ? 'نشط' : 'معطّل') + '</span></td>'
             + '<td><button class="btn btn-sm" onclick="window.__toggleModel(\'' + esc(m.id) + '\',' + (m.active !== false ? 0 : 1) + ')">' + (m.active !== false ? 'إيقاف' : 'تفعيل') + '</button> '
             + '<button class="btn btn-sm" onclick="window.__editModel(\'' + esc(m.id) + '\')">تعديل</button> '
             + '<button class="btn btn-sm" onclick="window.__delModel(\'' + esc(m.id) + '\')">حذف</button></td></tr>';
         }).join('')
-        + (models.length ? '' : '<tr><td colspan="7" class="empty">لا نماذج</td></tr>')
+        + (models.length ? '' : '<tr><td colspan="9" class="empty">لا نماذج</td></tr>')
         + '</tbody></table></div>';
     });
   }
@@ -532,29 +552,45 @@
     F.api('/api/models/' + encodeURIComponent(id), { method: 'DELETE' }).then(function () { F.toast('تم الحذف', 'ok'); loadModels(); });
   };
   window.__addModel = function () {
-    F.modal(modelFormHtml(null));
+    F.api('/api/keys/pool').then(function (r) { state.data.keys = (r && r.keys) || []; F.modal(modelFormHtml(null)); });
   };
   window.__editModel = function (id) {
     F.api('/api/models').then(function (r) {
       var m = (Array.isArray(r) ? r : []).find(function (x) { return x.id === id; });
-      if (m) F.modal(modelFormHtml(m));
+      if (!m) return;
+      F.api('/api/keys/pool').then(function (kr) { state.data.keys = (kr && kr.keys) || []; F.modal(modelFormHtml(m)); });
     });
   };
+  function modelKeyOptions(selected) {
+    var keys = state.data.keys || [];
+    var html = '<option value="">🔑 تلقائي (حسب المزوّد)' + (keys.length ? '' : ' — أضف مفتاحاً من «مفاتيح الصور» أولاً') + '</option>';
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i];
+      var sel = selected && (selected === k.id || selected === k.provider) ? ' selected' : '';
+      html += '<option value="' + esc(k.id) + '"' + sel + '>' + esc(k.provider) + ' • ' + esc(k.label || k.id.slice(0, 8)) + '</option>';
+    }
+    return html;
+  }
   function modelFormHtml(m) {
     return '<h3>' + (m ? 'تعديل النموذج' : 'إضافة نموذج') + '</h3><div class="form-grid">'
       + '<div class="field"><label>المعرّف</label><input id="moId" value="' + (m ? esc(m.id) : '') + '" ' + (m ? 'disabled' : '') + '></div>'
       + '<div class="field"><label>الاسم</label><input id="moName" value="' + (m ? esc(m.name) : '') + '"></div>'
       + '<div class="field"><label>المزوّد</label><input id="moProv" value="' + (m ? esc(m.provider) : '') + '"></div>'
       + '<div class="field"><label>النوع</label><select id="moUsage"><option value="text"' + ((!m || m.usage === 'text') ? ' selected' : '') + '>text</option><option value="image"' + ((m && m.usage === 'image') ? ' selected' : '') + '>image</option><option value="vision"' + ((m && m.usage === 'vision') ? ' selected' : '') + '>vision</option></select></div>'
+      + '<div class="field full"><label>المفتاح الذي يعمل به هذا النموذج</label><select id="moKey">' + modelKeyOptions(m ? (m.keyId || m.keyProvider) : '') + '</select></div>'
       + '<div class="field"><label>العرض</label><input id="moCtx" type="number" value="' + (m ? (m.context || '') : '') + '" placeholder="اختياري"></div>'
       + '<div class="field"><label>أقصى مخرجات</label><input id="moMax" type="number" value="' + (m ? (m.maxOutput || '') : '') + '"></div>'
       + '<div class="field"><label>تكلفة الإدخال $</label><input id="moIn" type="number" step="0.0001" value="' + (m ? (m.costIn || 0) : 0) + '"></div>'
       + '<div class="field"><label>تكلفة الإخراج $</label><input id="moOut" type="number" step="0.0001" value="' + (m ? (m.costOut || 0) : 0) + '"></div>'
+      + '<div class="field"><label>مدة تجريبية (أيام)</label><input id="moTrial" type="number" min="0" value="' + (m && m.trialDays ? m.trialDays : 0) + '" placeholder="0 = بلا تجربة"></div>'
+      + '<div class="field"><label>عدد طلبات التجربة</label><input id="moTrialReq" type="number" min="0" value="' + (m && m.trialRequests ? m.trialRequests : 0) + '" placeholder="0 = غير محدود"></div>'
+      + '<div class="field"><label>حد الطلبات الشهري</label><input id="moLimit" type="number" min="0" value="' + (m && m.requestLimit ? m.requestLimit : 0) + '" placeholder="0 = غير محدود"></div>'
       + '<div class="field full"><label>الوصف</label><input id="moDesc" value="' + (m ? esc(m.description) : '') + '"></div>'
       + '<div class="field full"><div style="display:flex;gap:18px;flex-wrap:wrap">'
       + '<label class="checkbox-field"><input type="checkbox" id="moFree" ' + (m && m.free ? 'checked' : '') + '> مجاني</label>'
       + '<label class="checkbox-field"><input type="checkbox" id="moVision" ' + (m && m.vision ? 'checked' : '') + '> رؤية</label>'
       + '<label class="checkbox-field"><input type="checkbox" id="moImage" ' + (m && m.image ? 'checked' : '') + '> توليد صور</label>'
+      + '<label class="checkbox-field"><input type="checkbox" id="moVisible" ' + ((!m || m.visible !== false) ? 'checked' : '') + '> ظاهر للعملاء</label>'
       + '<label class="checkbox-field"><input type="checkbox" id="moActive" ' + ((!m || m.active !== false) ? 'checked' : '') + '> نشط</label>'
       + '</div></div>'
       + '</div><div class="modal-actions"><button class="btn" onclick="window.__closeModal()">إلغاء</button><button class="btn btn-primary" onclick="window.__saveModel(\'' + (m ? esc(m.id) : '') + '\')">حفظ</button></div>';
@@ -572,6 +608,11 @@
       free: $('#moFree').checked,
       vision: $('#moVision').checked,
       image: $('#moImage').checked,
+      keyId: $('#moKey').value || null,
+      visible: $('#moVisible').checked,
+      trialDays: Number($('#moTrial').value) || null,
+      trialRequests: Number($('#moTrialReq').value) || null,
+      requestLimit: Number($('#moLimit').value) || null,
       active: $('#moActive').checked,
     };
     if (!body.name || !body.provider) { F.toast('الاسم والمزوّد مطلوبان', 'err'); return; }
@@ -722,9 +763,28 @@
   }
 
   /* ==================== الإقلاع ==================== */
+  let autoRefreshTimer = null;
+  function startAutoRefresh() {
+    if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+    autoRefreshTimer = setInterval(function () {
+      var lu = $('#lastUpdated');
+      if (lu) lu.textContent = 'آخر تحديث: ' + new Date().toLocaleTimeString('ar-EG');
+      // لا تحدّث أثناء فتح نافذة أو عند التركيز على حقل إدخال (حتى لا يضطرب النص)
+      var active = document.activeElement;
+      if (!$('#modalOverlay').classList.contains('hidden') || (active && active.tagName && /INPUT|SELECT|TEXTAREA/.test(active.tagName))) return;
+      render(state.section);
+    }, 3000);
+  }
   function boot() {
     initAuth();
     $('#adminApp').classList.remove('hidden');
+
+    // مؤشر آخر تحديث
+    var lastUpdated = document.createElement('div');
+    lastUpdated.className = 'last-updated';
+    lastUpdated.id = 'lastUpdated';
+    lastUpdated.textContent = 'آخر تحديث: الآن';
+    document.querySelector('.sidebar-footer').appendChild(lastUpdated);
 
     // الثيم
     var dt = document.documentElement.classList.contains('dark');
@@ -760,6 +820,7 @@
     F.api('/api/info').then(function (r) { $('#adminVersionFooter').textContent = 'v' + (r.version || '—'); });
 
     render('dashboard');
+    startAutoRefresh();
   }
 
   function render(section) {
