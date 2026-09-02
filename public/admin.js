@@ -84,31 +84,46 @@
       var all = ov.all || {};
       var keysSum = health.summary || {};
 
-      var html = ''
-        + '<div id="statGridWrap" class="stat-grid">'
-        + statCard('ic-blue', ov.modelCount || 0, 'نموذج مُفعل', 'من لوحة النماذج')
-        + statCard('ic-teal', fmtNum(today.requests || 0), 'طلبات اليوم', fmtNum(all.requests || 0) + ' إجمالي')
-        + statCard('ic-amber', (keysSum.ok || 0) + '/' + (keysSum.total || 0), 'مفاتيح صحيحة', (keysSum.low || 0) + ' منخفضة • ' + (keysSum.exhausted || 0) + ' منتهية')
-        + statCard('ic-purple', fmtNum(all.uniqueUsers || 0), 'مستخدم فريد', (users.users || []).length + ' ملف')
-        + statCard('ic-red', fmtUsd(all.cost || 0), 'تكلفة (14 يوم)', today.cost ? 'اليوم: ' + fmtUsd(today.cost) : '—')
-        + '</div>'
+      if (isFirstLoad) {
+        var html = ''
+          + '<div id="statGridWrap" class="stat-grid">'
+          + '<div class="stat-card" id="dsModels"><div class="stat-top"><div class="stat-ic ic-blue">◈</div></div><div class="stat-val">—</div><div class="stat-lbl">نموذج مُفعل</div><div class="stat-mini">من لوحة النماذج</div></div>'
+          + '<div class="stat-card" id="dsRequests"><div class="stat-top"><div class="stat-ic ic-teal">◈</div></div><div class="stat-val">—</div><div class="stat-lbl">طلبات اليوم</div><div class="stat-mini">—</div></div>'
+          + '<div class="stat-card" id="dsKeys"><div class="stat-top"><div class="stat-ic ic-amber">◈</div></div><div class="stat-val">—</div><div class="stat-lbl">مفاتيح صحيحة</div><div class="stat-mini">—</div></div>'
+          + '<div class="stat-card" id="dsUsers"><div class="stat-top"><div class="stat-ic ic-purple">◈</div></div><div class="stat-val">—</div><div class="stat-lbl">مستخدم فريد</div><div class="stat-mini">—</div></div>'
+          + '<div class="stat-card" id="dsCost"><div class="stat-top"><div class="stat-ic ic-red">◈</div></div><div class="stat-val">—</div><div class="stat-lbl">تكلفة (14 يوم)</div><div class="stat-mini">—</div></div>'
+          + '</div>'
+          + '<div class="grid-2">'
+          + '<div class="card"><div class="card-head"><h3>طلبات آخر 14 يوم</h3><button class="link-btn" data-go="analytics">تحليلات ←</button></div><div id="miniChart"></div></div>'
+          + '<div class="card"><div class="card-head"><h3>أحدث نشاطات</h3><button class="link-btn" data-go="activity">السجل ←</button></div><div id="miniAct"></div></div>'
+          + '</div>'
+          + '<div class="card"><div class="card-head"><h3>حالة النظام</h3></div>'
+          + '<div class="grid-2">'
+          + '<div class="bar-row" id="dsOmni"><div class="br-head"><span>البوابة OmniRoute</span><span><span class="tag">—</span></span></div></div>'
+          + '<div class="bar-row" id="dsSupa"><div class="br-head"><span>Supabase</span><span><span class="tag">—</span></span></div></div>'
+          + '<div class="bar-row" id="dsActModels"><div class="br-head"><span>النماذج النشطة</span><span><span class="tag">—</span></span></div></div>'
+          + '<div class="bar-row" id="dsUptime"><div class="br-head"><span>زمن التشغيل</span><span><span class="tag">—</span></span></div></div>'
+          + '</div></div>';
+        v.innerHTML = html;
+        bindGo();
+      }
 
-        + '<div class="grid-2">'
-        + '<div class="card"><div class="card-head"><h3>طلبات آخر 14 يوم</h3><button class="link-btn" data-go="analytics">تحليلات ←</button></div><div id="miniChart"></div></div>'
-        + '<div class="card"><div class="card-head"><h3>أحدث نشاطات</h3><button class="link-btn" data-go="activity">السجل ←</button></div><div id="miniAct">' + activityRows(act) + '</div></div>'
-        + '</div>'
+      /* تحديث القيم بدون استبدال HTML */
+      var g = $('#dsModels'); if (g) { g.querySelector('.stat-val').textContent = ov.modelCount || 0; }
+      var r = $('#dsRequests'); if (r) { r.querySelector('.stat-val').textContent = fmtNum(today.requests || 0); r.querySelector('.stat-mini').textContent = fmtNum(all.requests || 0) + ' إجمالي'; }
+      var k = $('#dsKeys'); if (k) { k.querySelector('.stat-val').textContent = (keysSum.ok || 0) + '/' + (keysSum.total || 0); k.querySelector('.stat-mini').textContent = (keysSum.low || 0) + ' منخفضة • ' + (keysSum.exhausted || 0) + ' منتهية'; }
+      var u = $('#dsUsers'); if (u) { u.querySelector('.stat-val').textContent = fmtNum(all.uniqueUsers || 0); u.querySelector('.stat-mini').textContent = (users.users || []).length + ' ملف'; }
+      var c = $('#dsCost'); if (c) { c.querySelector('.stat-val').textContent = fmtUsd(all.cost || 0); c.querySelector('.stat-mini').textContent = today.cost ? 'اليوم: ' + fmtUsd(today.cost) : '—'; }
 
-        + '<div class="card"><div class="card-head"><h3>حالة النظام</h3></div>'
-        + '<div class="grid-2">'
-        + sysRow('البوابة OmniRoute', (sys.components && sys.components.omniroute && sys.components.omniroute.running) ? 'تعمل' : 'متوقفة', (sys.components && sys.components.omniroute && sys.components.omniroute.running) ? 'ok' : 'danger')
-        + sysRow('Supabase', (sys.components && sys.components.supabase && sys.components.supabase.status === 'healthy') ? 'متصل' : 'غير مُعد', (sys.components && sys.components.supabase && sys.components.supabase.status === 'healthy') ? 'ok' : 'warn')
-        + sysRow('النماذج النشطة', sys.stats ? sys.stats.activeModels : 0, 'info')
-        + sysRow('زمن التشغيل', sys.uptime ? Math.round(sys.uptime / 60) + ' دقيقة' : '—', 'info')
-        + '</div></div>';
+      var setTag = function (id, txt, cls) { var el = $(id); if (el) { var t = el.querySelector('.tag'); if (t) { t.textContent = txt; t.className = 'tag tag-' + cls; } } };
+      setTag('#dsOmni', (sys.components && sys.components.omniroute && sys.components.omniroute.running) ? 'تعمل' : 'متوقفة', (sys.components && sys.components.omniroute && sys.components.omniroute.running) ? 'ok' : 'danger');
+      setTag('#dsSupa', (sys.components && sys.components.supabase && sys.components.supabase.status === 'healthy') ? 'متصل' : 'غير مُعد', (sys.components && sys.components.supabase && sys.components.supabase.status === 'healthy') ? 'ok' : 'warn');
+      setTag('#dsActModels', sys.stats ? sys.stats.activeModels : 0, 'info');
+      setTag('#dsUptime', sys.uptime ? Math.round(sys.uptime / 60) + ' دقيقة' : '—', 'info');
 
-      v.innerHTML = html;
+      var actEl = $('#miniAct');
+      if (actEl) actEl.innerHTML = activityRows(act);
       loadTimeline('#miniChart', 14, true);
-      bindGo();
     }).catch(function () {
       if (isFirstLoad) v.innerHTML = '<div class="empty">تعذر تحميل البيانات</div>';
     });
