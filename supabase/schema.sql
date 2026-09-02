@@ -20,6 +20,11 @@ CREATE TABLE IF NOT EXISTS models (
   usage TEXT DEFAULT 'text',
   active BOOLEAN DEFAULT TRUE,
   description TEXT DEFAULT '',
+  visible BOOLEAN DEFAULT TRUE,
+  key_id TEXT DEFAULT NULL,
+  trial_days INTEGER DEFAULT NULL,
+  trial_requests INTEGER DEFAULT NULL,
+  request_limit INTEGER DEFAULT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -29,6 +34,14 @@ ALTER TABLE models ADD COLUMN IF NOT EXISTS usage TEXT DEFAULT 'text';
 
 -- ترقية جدول النماذج القائم (إن لم تكن أعمدة جديدة موجودة بعد)
 ALTER TABLE models ADD COLUMN IF NOT EXISTS image BOOLEAN DEFAULT FALSE;
+
+-- إدارة النماذج: الربط بالمفتاح + الرؤية للعملاء + التجربة + حد الطلبات
+ALTER TABLE models ADD COLUMN IF NOT EXISTS visible BOOLEAN DEFAULT TRUE;
+ALTER TABLE models ADD COLUMN IF NOT EXISTS key_id TEXT DEFAULT NULL;
+ALTER TABLE models ADD COLUMN IF NOT EXISTS trial_days INTEGER DEFAULT NULL;
+ALTER TABLE models ADD COLUMN IF NOT EXISTS trial_requests INTEGER DEFAULT NULL;
+ALTER TABLE models ADD COLUMN IF NOT EXISTS request_limit INTEGER DEFAULT NULL;
+CREATE INDEX IF NOT EXISTS idx_models_visible ON models(visible);
 
 -- جدول التوكنات (Tokens)
 CREATE TABLE IF NOT EXISTS tokens (

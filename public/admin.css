@@ -100,6 +100,8 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
 .gw-dot.on { background: var(--accent); box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2); }
 .gw-dot.off { background: var(--danger); }
 .version { font-size: 11px; color: var(--tx-dim); text-align: center; }
+.last-updated { font-size: 10px; color: var(--accent); text-align: center; margin-top: 2px; }
+
 
 /* ---------- الأزرار ---------- */
 .btn {

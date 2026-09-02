@@ -569,6 +569,7 @@ app.post('/api/gateway/import-free', async (_req, res) => {
         vision: /vision|image|multimodal/i.test(gm.id + ' ' + (gm.name || '')),
         video: /video|sora|runway/i.test(gm.id + ' ' + (gm.name || '')),
         active: true,
+        visible: true,
         description: 'مستورد من OmniRoute',
         createdAt: Date.now(),
         updatedAt: Date.now(),
@@ -1177,17 +1178,13 @@ app.get('/api/keys/pool', async (_req, res) => {
   try {
     const pool = ensureDailyReset(readKeyPool());
     const cloudKeys = await listCloudKeys();
-    const cloudByKey = new Map();
-    for (const ck of cloudKeys) {
-      if (!cloudByKey.has(ck.key)) cloudByKey.set(ck.key, ck);
-    }
 
     const merged = [];
     const seen = new Set();
 
-    // أ) السجلات السحابية (المصدر الأساسي لكل المستخدمين)
+    // أ) السجلات السحابية (المصدر الأساسي لكل المستخدمين) — كل المزوّدين
     for (const ck of cloudKeys) {
-      if (String(ck.provider || '').toLowerCase().trim() !== 'google') continue;
+      if (!ck.key) continue;
       if (seen.has(ck.key)) continue;
       seen.add(ck.key);
       const kid = ck.id || getKeyId(ck);
@@ -1197,7 +1194,7 @@ app.get('/api/keys/pool', async (_req, res) => {
       if (st.requests < used) st.requests = used;
       merged.push({
         id: kid,
-        provider: 'google',
+        provider: normalizeProvider(ck.provider),
         baseUrl: ck.base_url || '',
         label: ck.label || '',
         keyMasked: maskKey(ck.key),
@@ -1246,11 +1243,11 @@ app.get('/api/keys/pool', async (_req, res) => {
       });
     }
 
-    // ج) مفاتيح Google من ملف التوكنات العمومي (لمنع الازدواج اثناء التحول)
+    // ج) مفاتيح من ملف التوكنات العمومي (لمنع الازدواج اثناء التحول) — كل المزوّدين
     const tokens = readJson(tokensFilePath()) || [];
     for (const tk of tokens) {
       const p = normalizeProvider(tk.provider);
-      if (p !== 'google' || !tk.key || seen.has(tk.key)) continue;
+      if (!tk.key || seen.has(tk.key)) continue;
       seen.add(tk.key);
       const kid = 'local_' + getKeyId(tk);
       usedBy(kid);
@@ -1355,12 +1352,12 @@ app.post('/api/keys/pool', async (req, res) => {
       for (const rec of added) {
         if (rec.source === 'cloud') {
           if (await upsertCloudKey(rec)) synced++;
-          else await syncLocalTokenForPanel('google', rec.key);
+          else await syncLocalTokenForPanel(rec.provider, rec.key);
         } else {
-          await syncLocalTokenForPanel('google', rec.key);
+          await syncLocalTokenForPanel(rec.provider, rec.key);
         }
       }
-      logActivity('keypool_add', 'إضافة ' + added.length + ' مفتاح Google (' + synced + ' متزامن مع السحابة)');
+      logActivity('keypool_add', 'إضافة ' + added.length + ' مفتاح ' + added.map(a => a.provider).join(',') + ' (' + synced + ' متزامن مع السحابة)');
       return res.json({ ok: true, added: added.map(a => ({ id: a.id, label: a.label, keyMasked: maskKey(a.key) })), syncedCloud: synced });
     }
 
@@ -1427,31 +1424,54 @@ app.post('/api/keys/pool/test', async (req, res) => {
 
 /* ---------------------------- مسارات API — صحة المزوّدين والمفاتيح ---------------------------- */
 
-// فحص شامل لكل مفاتيح التوليد (الكوتة، الحالة، المتبقي)
+// فحص شامل لكل مفاتيح التوليد (الكوتة، الحالة، المتبقي) — موحّد مع مجمّع المفاتيح
 app.get('/api/health/keys', async (_req, res) => {
   try {
-    const keys = await listCloudKeys();
-    const list = Array.isArray(keys) ? keys : [];
-    const today = new Date().toISOString().slice(0, 10);
-    const statuses = list.map(k => {
-      const usedToday = k.last_reset && String(k.last_reset).slice(0, 10) === today ? (Number(k.used_today) || 0) : 0;
-      const quota = Number(k.quota_daily) || DEFAULT_DAILY_QUOTA;
-      return {
-        id: k.id || getKeyId(k),
-        provider: k.provider || 'google',
-        label: k.label || '',
-        enabled: k.enabled !== false,
+    const pool = ensureDailyReset(readKeyPool());
+    const cloudKeys = await listCloudKeys();
+    const seen = new Set();
+    const list = [];
+
+    const addKey = (id, provider, label, enabled, usedToday, quotaDaily) => {
+      usedToday = parseInt(usedToday, 10) || 0;
+      quotaDaily = parseInt(quotaDaily, 10) || DEFAULT_DAILY_QUOTA;
+      const remaining = Math.max(quotaDaily - usedToday, 0);
+      list.push({
+        id,
+        provider: normalizeProvider(provider),
+        label: label || '',
+        enabled: enabled !== false,
         usedToday,
-        quotaDaily: quota,
-        remaining: Math.max(quota - usedToday, 0),
-        health: !k.enabled ? 'disabled' : (quota - usedToday <= 0 ? 'exhausted' : (quota - usedToday <= quota * 0.2 ? 'low' : 'ok')),
-      };
-    });
-    const ok = statuses.filter(k => k.health === 'ok').length;
-    const low = statuses.filter(k => k.health === 'low').length;
-    const exhausted = statuses.filter(k => k.health === 'exhausted').length;
-    const disabled = statuses.filter(k => k.health === 'disabled').length;
-    res.json({ ok: true, keys: statuses, summary: { total: statuses.length, ok, low, exhausted, disabled } });
+        quotaDaily,
+        remaining,
+        health: enabled === false ? 'disabled' : (remaining <= 0 ? 'exhausted' : (remaining <= quotaDaily * 0.2 ? 'low' : 'ok')),
+      });
+    };
+
+    for (const ck of (cloudKeys || [])) {
+      if (!ck.key || seen.has(ck.key)) continue;
+      seen.add(ck.key);
+      const kid = ck.id || getKeyId(ck);
+      const used = parseInt(ck.used_today, 10) || 0;
+      addKey(kid, ck.provider, ck.label, ck.enabled, used, ck.quota_daily);
+    }
+    for (const kp of pool) {
+      if (!kp.key || seen.has(kp.key)) continue;
+      seen.add(kp.key);
+      addKey(kp.id || 'local_' + getKeyId(kp), kp.provider, kp.label, kp.enabled, kp.usedToday, kp.quotaDaily);
+    }
+    const tokens = readJson(tokensFilePath()) || [];
+    for (const tk of tokens) {
+      if (!tk.key || seen.has(tk.key)) continue;
+      seen.add(tk.key);
+      addKey('local_' + getKeyId(tk), tk.provider, tk.label || tk.provider, true, 0, DEFAULT_DAILY_QUOTA);
+    }
+
+    const ok = list.filter(k => k.health === 'ok').length;
+    const low = list.filter(k => k.health === 'low').length;
+    const exhausted = list.filter(k => k.health === 'exhausted').length;
+    const disabled = list.filter(k => k.health === 'disabled').length;
+    res.json({ ok: true, keys: list, summary: { total: list.length, ok, low, exhausted, disabled } });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
@@ -1627,16 +1647,17 @@ app.get('/api/users/stats', async (_req, res) => {
 
     const usersByEmail = new Map();
     try {
-      const { data: profiles } = await db.from('user_profiles').select('*').limit(500);
-      for (const p of (profiles || [])) {
-        const keyId = p.user_id || p.email;
-        usersByEmail.set(String(p.email || p.user_id || '').toLowerCase(), p);
+      const { data: profiles, error } = await db.from('user_profiles').select('*').limit(1000);
+      if (!error) {
+        for (const p of (profiles || [])) {
+          usersByEmail.set(String(p.email || p.user_id || '').toLowerCase(), p);
+        }
       }
     } catch (e) { /* تجاهل — قد تكون أعمدة جديدة غير مضافّة */ }
 
     let users = [];
     try {
-      const resp = await httpGet(supabaseEnv().url + '/auth/v1/admin/users', supabaseRestHeaders());
+      const resp = await httpGet(supabaseEnv().url + '/auth/v1/admin/users?per_page=1000', supabaseRestHeaders());
       if (resp.statusCode === 200) {
         const parsed = JSON.parse(resp.body);
         const rawUsers = parsed.users || [];
@@ -1662,6 +1683,9 @@ app.get('/api/users/stats', async (_req, res) => {
             lastActive: u.last_sign_in_at || u.created_at || null,
           };
         });
+      } else {
+        // auth admin غير متاح (مفتاح غير مخوّل) — نعتمد حصراً على user_profiles
+        console.log('  ⚠ /auth/v1/admin/users أعاد ' + resp.statusCode + ' — الاعتماد على user_profiles');
       }
     } catch (e) {
       console.log('  ⚠ تعذر جلب مستخدمي Supabase Auth:', e.message);
@@ -1687,6 +1711,27 @@ app.get('/api/users/stats', async (_req, res) => {
           lastActive: null,
         });
       }
+    }
+
+    // احتياطي أخير: حساب مجهول بأي استهلاك موجود في سجل الاستخدام (حتى لو فشل كل ما سبق)
+    if (!users.length) {
+      try {
+        const { data: usage, error } = await db.from('key_usage')
+          .select('user_id,user_email,count,kind,created_at')
+          .not('user_id', 'is', null).order('created_at', { ascending: false }).limit(1000);
+        if (!error && (usage || []).length) {
+          const byUid = new Map();
+          for (const r of usage) {
+            const uid = String(r.user_id || 'anon');
+            const key = String(r.user_email || '').toLowerCase() || uid;
+            if (!byUid.has(key)) byUid.set(key, { id: uid, email: r.user_email || '', name: (r.user_email || uid).split('@')[0], plan: 'free', imagesTotal: 0, imagesToday: 0, totalRequests: 0 });
+            const a = byUid.get(key);
+            a.totalRequests += Number(r.count || 1);
+            if (r.kind === 'image') a.imagesTotal += Number(r.count || 1);
+          }
+          users = [...byUid.values()];
+        }
+      } catch (e) { /* ignore */ }
     }
 
     res.json({ ok: true, users, source: usersByEmail.size ? 'supabase' : 'auth-only' });
@@ -2465,6 +2510,9 @@ async function autoSyncAfterModelChange() {
           cost_in: m.costIn, cost_out: m.costOut,
           free: m.free, vision: m.vision, video: m.video,
           image: m.image, active: m.active, description: m.description,
+          visible: m.visible !== false, key_id: m.keyId || null,
+          trial_days: m.trialDays || null, trial_requests: m.trialRequests || null,
+          request_limit: m.requestLimit || null,
         }, { onConflict: 'id' });
         synced++;
       } catch (e) { /* ignore per-model */ }
@@ -2495,23 +2543,26 @@ app.get('/api/public/broadcasts', async (_req, res) => {
 app.get('/api/public/models', async (_req, res) => {
   const db = getSupabase();
   if (!db) {
-    // بدون Supabase، أرجع النماذج المحلية
-    const models = (readJson(modelsFilePath()) || []).filter(m => m.active !== false);
+    // بدون Supabase، أرجع النماذج المحلية الظاهرة فقط
+    const models = (readJson(modelsFilePath()) || []).filter(m => m.active !== false && m.visible !== false);
     return res.json({ ok: true, models, count: models.length });
   }
   try {
-    const { data, error } = await db.from('models').select('id, name, provider, context, max_output, cost_in, cost_out, free, vision, video, active, description').eq('active', true).order('name');
+    const { data, error } = await db.from('models').select('id, name, provider, context, max_output, cost_in, cost_out, free, vision, video, active, visible, trial_days, trial_requests, request_limit, description').eq('active', true).eq('visible', true).order('name');
     if (error) throw error;
     const models = (data || []).map(m => ({
       id: m.id, name: m.name, provider: m.provider,
       context: m.context, maxOutput: m.max_output,
       costIn: m.cost_in, costOut: m.cost_out,
       free: m.free, vision: m.vision, video: m.video,
+      visible: m.visible !== false,
+      trialDays: m.trial_days, trialRequests: m.trial_requests,
+      requestLimit: m.request_limit,
       description: m.description,
     }));
     res.json({ ok: true, models, count: models.length });
   } catch (e) {
-    const models = (readJson(modelsFilePath()) || []).filter(m => m.active !== false);
+    const models = (readJson(modelsFilePath()) || []).filter(m => m.active !== false && m.visible !== false);
     res.json({ ok: true, models, count: models.length });
   }
 });
@@ -2852,6 +2903,9 @@ app.post('/api/push/to-cloud', async (_req, res) => {
             cost_in: m.costIn, cost_out: m.costOut,
             free: m.free, vision: m.vision, video: m.video,
             active: m.active, description: m.description,
+            visible: m.visible !== false, key_id: m.keyId || null,
+            trial_days: m.trialDays || null, trial_requests: m.trialRequests || null,
+            request_limit: m.requestLimit || null,
           }, { onConflict: 'id' });
           synced++;
         } catch (e) { /* ignore */ }
@@ -2888,6 +2942,9 @@ app.post('/api/pull/from-cloud', async (_req, res) => {
             costIn: m.cost_in, costOut: m.cost_out,
             free: m.free, vision: m.vision, video: m.video,
             active: m.active, description: m.description,
+            visible: m.visible !== false, keyId: m.key_id || null,
+            trialDays: m.trial_days || null, trialRequests: m.trial_requests || null,
+            requestLimit: m.request_limit || null,
             createdAt: m.created_at, updatedAt: m.updated_at,
           });
           imported++;
